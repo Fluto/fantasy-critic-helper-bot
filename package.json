@@ -1,0 +1,33 @@
+{
+  "name": "fantasy-critic-helper-bot",
+  "version": "1.0.0",
+  "description": "A cool bot for cool people",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev src/main.ts",
+    "start": "node --loader ts-node/esm/transpile-only src/main.ts",
+    "serve": "node build/main.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@discordjs/rest": "^0.2.0-canary.0",
+    "cross-fetch": "^3.1.4",
+    "date-fns": "^2.28.0",
+    "discord-api-types": "^0.26.1",
+    "discord.js": "^13.5.0",
+    "lodash": "^4.17.21",
+    "node-fetch": "^3.1.0",
+    "node-persist": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.14.178",
+    "@types/node-persist": "^3.1.2",
+    "nodemon": "^2.0.15",
+    "prettier": "^2.5.1",
+    "ts-node": "^10.4.0",
+    "ts-node-dev": "^1.1.8",
+    "typescript": "^4.5.4"
+  }
+}

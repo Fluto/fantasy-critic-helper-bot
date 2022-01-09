@@ -1,0 +1,293 @@
+//@ts-check
+import { REST } from '@discordjs/rest';
+import { Routes } from 'discord-api-types/v9';
+import { clientId, guildId, token } from './config.json';
+import { SlashCommandBuilder } from '@discordjs/builders';
+import storage from 'node-persist';
+import { BaseCommandInteraction, CacheType, Client, Intents, Interaction, MessageEmbed, TextChannel } from 'discord.js';
+const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
+import { forEach, union } from 'lodash';
+import { FantasyCriticResponse, getLeague } from './fantasyCritic';
+
+const STORAGE_WATCH_KEY = "watches";
+const POLL_TIME = 1000 * 60 * 30;// 30 minutes
+//#region Setup stoage
+
+const setupStorage = async () => {
+  await storage.init({
+    dir: 'storage',
+    stringify: JSON.stringify,
+    parse: JSON.parse,
+    encoding: 'utf8',
+  });
+}
+
+//#endregion
+
+//#region Setup Commands
+const commands = [
+  new SlashCommandBuilder().setName('listen').setDescription('Will listen to public bids and post them in this channel').addStringOption(option => option.setName('league').setDescription('The league to listen to')),
+  new SlashCommandBuilder().setName('stop').setDescription('Will stop listening to public bids and post them in this channel')
+
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('league')
+        .setDescription('Stop listening to a particular league')
+        .addStringOption(option => option.setName('league').setDescription('The league ID to stop listening to')))
+
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('all')
+        .setDescription('Stop listening to all leagues'))
+].map(command => command.toJSON());
+
+const rest = new REST({ version: '9' }).setToken(token);
+
+(async () => {
+  try {
+    console.log('Started refreshing application (/) commands.');
+
+    await rest.put(
+      Routes.applicationGuildCommands(clientId, guildId),
+      { body: commands },
+    );
+
+    console.log('Successfully reloaded application (/) commands.');
+  }
+  catch (error) {
+    console.error(error);
+  }
+})();
+
+//#endregion
+
+//#region Response
+
+const listenInteraction = async (interaction: BaseCommandInteraction<CacheType>) => {
+  const league = interaction.options.get("league");
+  if (league == null || league.value == null) {
+    await interaction.reply('Need league ID');
+    return;
+  }
+
+  let leagueId = league.value.toString();
+  if (leagueId.length != 36) {
+    await interaction.reply('League ID needs to be 32 Chars (GUID)');
+    return;
+  }
+
+  // test the league
+  let data = await getLeague(leagueId);
+  if (data == null) {
+    await interaction.reply('League ID is invalid');
+    return;
+  }
+
+  var watches = await storage.get(STORAGE_WATCH_KEY) as WatchEntries;
+  if (watches == null)
+    watches = new WatchEntries();
+
+  let watch = watches.entries.find(x => x.channelId == interaction.channelId && x.guildId == interaction.guildId);
+  if (watch == null) {
+    watch = new WatchEntry({ channelId: interaction.channelId, guildId: interaction.guildId! });
+    watches.entries.push(watch);
+  }
+
+  if (watch.leagues.findIndex(x => x.leagueId == leagueId) >= 0) {
+    await interaction.reply(`League \`${leagueId}\` is already being watched`);
+    return;
+  }
+
+  watch.leagues.push(new LeagueEntry(leagueId));
+  storage.set(STORAGE_WATCH_KEY, watches);
+  await interaction.reply(`Listening to league \`${leagueId}\``);
+}
+
+
+/**
+ * 
+ * @param {Interaction<CacheType>} interaction 
+ */
+const stopInteraction = async (interaction: BaseCommandInteraction<CacheType>) => {
+  const league = interaction.options.get("league");
+  let leagueIdToRemove = null as string | null;
+
+  if (league != null && league.value != null) {
+    leagueIdToRemove = league.value.toString();
+
+    if (leagueIdToRemove.length != 36) {
+      await interaction.reply('League ID needs to be 32 Chars (GUID)');
+      return;
+    }
+  }
+
+  var watches = await storage.get(STORAGE_WATCH_KEY) as WatchEntries;
+  if (watches == null)
+    watches = new WatchEntries();
+
+  let watchIndex = watches.entries.findIndex(x => x.channelId == interaction.channelId && x.guildId == interaction.guildId);
+  if (watchIndex < 0) {
+    await interaction.reply('This channel is already not listening to leagues');
+    return;
+  }
+
+  let watch = watches.entries[watchIndex];
+  // remove one league
+  if (leagueIdToRemove != null) {
+    let leagueIndex = watch.leagues.findIndex(x => x.leagueId == leagueIdToRemove);
+    if (leagueIndex < 0) {
+      await interaction.reply(`League \`${leagueIdToRemove}\` is already not being listened to`);
+      return;
+    }
+
+    watch.leagues.splice(leagueIndex, 1);
+    await interaction.reply(`Stopped listening to League \`${leagueIdToRemove}\``);
+  }
+  // remove all leagues, i.e. the entire entry
+  else {
+    watches.entries.splice(watchIndex, 1);
+    await interaction.reply(`Stopped listening to all leagues`);
+  }
+  storage.set(STORAGE_WATCH_KEY, watches);
+}
+
+client.on('ready', () => {
+  console.log(`Logged in as ${client!.user!.tag}!`);
+});
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isCommand()) return;
+
+  if (interaction.commandName === 'listen')
+    await listenInteraction(interaction);
+
+  if (interaction.commandName === 'stop') {
+    await stopInteraction(interaction);
+  }
+});
+
+//#endregion
+
+//#region listen
+var startListening = async () => {
+  const tickTimer = async () => {
+    await new Promise(r => setTimeout(r, POLL_TIME));
+    await tick();
+  }
+  const tick = async () => {
+    // call tick again in the future
+    tickTimer();
+
+    var watches = await storage.get(STORAGE_WATCH_KEY) as WatchEntries;
+    if (watches == null)
+      return;
+
+    var leagueCache = {} as { [id: string] : FantasyCriticResponse; };
+
+    for (const watch of watches.entries) {
+      for (const league of watch.leagues) {
+        let response = leagueCache[league.leagueId] as FantasyCriticResponse | null;
+        
+        // get the response
+        if (response == null) {
+          response = await getLeague(league.leagueId);
+          // if we can't fetch, then stop
+          if (response == null)
+            continue;
+
+          leagueCache[league.leagueId] = response;          
+        }
+
+        // are there no public bids?
+        if (response.publicBiddingGames == null) {
+          // Did we have public bids before? if so store the cache as empty
+          if (league.publicBiddingGamesMasterIds.length !== 0){
+            console.log("Day has come to an end, no public bids");
+            league.publicBiddingGamesMasterIds = [];
+          } else {
+            continue;
+          }
+        } else {
+          // see if there are master bids
+          var masterIds = response.publicBiddingGames.map(x => x.masterGameID);
+          var combinedIds = union(masterIds, league.publicBiddingGamesMasterIds);
+  
+          if (league.publicBiddingGamesMasterIds.length == combinedIds.length){
+            // no noticable changes, do nothing
+            continue;
+          }
+  
+          if (masterIds.length !== 0) {
+            // there are new bids, post them in the chat
+            var channel = (await client.channels.fetch(watch.channelId!)) as TextChannel;
+            var message = createEmbedMessage(response);
+            await channel.send({ embeds: [message] });
+          }
+  
+          league.publicBiddingGamesMasterIds = masterIds;
+        }
+
+        storage.set(STORAGE_WATCH_KEY, watches);
+      }
+    }
+  }
+
+  await tick();
+}
+
+const createEmbedMessage = (data : FantasyCriticResponse) => {
+  let message = new MessageEmbed();
+
+  let bids = data.publicBiddingGames;
+  bids.sort((x,y) => x.gameName.localeCompare(y.gameName))
+
+  let games = bids.map(x => x.gameName).reduce((x,y)=>`${x}\n${y}`)
+  let dates = bids.map(x => x.estimatedReleaseDate).reduce((x,y)=>`${x}\n${y}`)
+
+  message
+      .setTitle(`Fantasy Critic Public Bids - ${data.players[0].user.leagueName}`)
+      .setColor("#d6993a")
+      .setURL(`https://www.fantasycritic.games/league/${data.leagueID}/${data.year}`)
+      .addFields(
+          { name: 'Games', value: games, inline: true },
+          { name: 'Dates', value: dates || "N/A", inline: true },
+      )
+      .setThumbnail("https://pbs.twimg.com/profile_images/1067596827279704064/rFjTL7o6_400x400.jpg")
+      .setTimestamp();
+
+  return message;
+} 
+
+//#endregion
+
+//#region Initialize
+setupStorage().then(() => {
+  client.login(token).then(() => {
+    startListening();
+  });
+});
+//#endregion
+
+
+class WatchEntries {
+  entries: WatchEntry[] = [];
+}
+
+class WatchEntry {
+  guildId: string;
+  channelId: string;
+  leagues: LeagueEntry[] = [];
+
+  constructor(args: { guildId: string, channelId: string }) {
+    this.guildId = args.guildId;
+    this.channelId = args.channelId;
+  }
+}
+
+class LeagueEntry {
+  leagueId: string;
+  publicBiddingGamesMasterIds: string[] = [];
+
+  constructor(leagueId: string) {
+    this.leagueId = leagueId;
+  }
+}
