@@ -1,12 +1,12 @@
 //@ts-check
 import { REST } from '@discordjs/rest';
 import { Routes } from 'discord-api-types/v9';
-import { clientId, guildId, token } from './config.json';
+import { clientId, token } from './config.json';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import storage from 'node-persist';
 import { BaseCommandInteraction, CacheType, Client, Intents, Interaction, MessageEmbed, TextChannel } from 'discord.js';
 const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
-import { forEach, union } from 'lodash';
+import { union } from 'lodash';
 import { FantasyCriticResponse, getLeague } from './fantasyCritic';
 
 const STORAGE_WATCH_KEY = "watches";
@@ -25,39 +25,49 @@ const setupStorage = async () => {
 //#endregion
 
 //#region Setup Commands
-const commands = [
-  new SlashCommandBuilder().setName('listen').setDescription('Will listen to public bids and post them in this channel').addStringOption(option => option.setName('league').setDescription('The league to listen to')),
-  new SlashCommandBuilder().setName('stop').setDescription('Will stop listening to public bids and post them in this channel')
 
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('league')
-        .setDescription('Stop listening to a particular league')
-        .addStringOption(option => option.setName('league').setDescription('The league ID to stop listening to')))
-
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('all')
-        .setDescription('Stop listening to all leagues'))
-].map(command => command.toJSON());
-
-const rest = new REST({ version: '9' }).setToken(token);
-
-(async () => {
-  try {
-    console.log('Started refreshing application (/) commands.');
-
-    await rest.put(
-      Routes.applicationGuildCommands(clientId, guildId),
-      { body: commands },
-    );
-
-    console.log('Successfully reloaded application (/) commands.');
-  }
-  catch (error) {
-    console.error(error);
-  }
-})();
+const setupRest = async (guilds : string[]) => {
+  const commands = [
+    new SlashCommandBuilder().setName('listen').setDescription('Will listen to public bids and post them in this channel').addStringOption(option => option.setName('league').setDescription('The league to listen to')),
+    new SlashCommandBuilder().setName('stop').setDescription('Will stop listening to public bids and post them in this channel')
+  
+      .addSubcommand(subcommand =>
+        subcommand
+          .setName('league')
+          .setDescription('Stop listening to a particular league')
+          .addStringOption(option => option.setName('league').setDescription('The league ID to stop listening to')))
+  
+      .addSubcommand(subcommand =>
+        subcommand
+          .setName('all')
+          .setDescription('Stop listening to all leagues'))
+  ].map(command => command.toJSON());
+  
+  const rest = new REST({ version: '9' }).setToken(token);
+  
+  (async () => {
+    try {
+      console.log('Started refreshing application (/) commands.');
+  
+      for (const guildId of guilds) {
+        console.log("Updating commands for: " + guildId);
+        try {
+          await rest.put(
+            Routes.applicationGuildCommands(clientId, guildId),
+            { body: commands },
+          );
+        } catch {
+          console.log("Don't have permissions for this server");
+        }
+      }
+  
+      console.log('Successfully reloaded application (/) commands.');
+    }
+    catch (error) {
+      console.error(error);
+    }
+  })();
+}
 
 //#endregion
 
@@ -153,7 +163,10 @@ const stopInteraction = async (interaction: BaseCommandInteraction<CacheType>) =
 
 client.on('ready', () => {
   console.log(`Logged in as ${client!.user!.tag}!`);
+  const existingGuilds = client.guilds.cache.map(guild => guild.id);
+  setupRest(existingGuilds);
 });
+
 client.on('interactionCreate', async interaction => {
   if (!interaction.isCommand()) return;
 
@@ -163,6 +176,10 @@ client.on('interactionCreate', async interaction => {
   if (interaction.commandName === 'stop') {
     await stopInteraction(interaction);
   }
+});
+
+client.on("guildCreate", guild => {
+  setupRest([guild.id]);
 });
 
 //#endregion
