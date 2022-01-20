@@ -26,29 +26,29 @@ const setupStorage = async () => {
 
 //#region Setup Commands
 
-const setupRest = async (guilds : string[]) => {
+const setupRest = async (guilds: string[]) => {
   const commands = [
     new SlashCommandBuilder().setName('listen').setDescription('Will listen to public bids and post them in this channel').addStringOption(option => option.setName('league').setDescription('The league to listen to')),
     new SlashCommandBuilder().setName('stop').setDescription('Will stop listening to public bids and post them in this channel')
-  
+
       .addSubcommand(subcommand =>
         subcommand
           .setName('league')
           .setDescription('Stop listening to a particular league')
           .addStringOption(option => option.setName('league').setDescription('The league ID to stop listening to')))
-  
+
       .addSubcommand(subcommand =>
         subcommand
           .setName('all')
           .setDescription('Stop listening to all leagues'))
   ].map(command => command.toJSON());
-  
+
   const rest = new REST({ version: '9' }).setToken(token);
-  
+
   (async () => {
     try {
       console.log('Started refreshing application (/) commands.');
-  
+
       for (const guildId of guilds) {
         console.log("Updating commands for: " + guildId);
         try {
@@ -60,7 +60,7 @@ const setupRest = async (guilds : string[]) => {
           console.log("Don't have permissions for this server");
         }
       }
-  
+
       console.log('Successfully reloaded application (/) commands.');
     }
     catch (error) {
@@ -168,13 +168,17 @@ client.on('ready', () => {
 });
 
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isCommand()) return;
+  try {
+    if (!interaction.isCommand()) return;
 
-  if (interaction.commandName === 'listen')
-    await listenInteraction(interaction);
+    if (interaction.commandName === 'listen')
+      await listenInteraction(interaction);
 
-  if (interaction.commandName === 'stop') {
-    await stopInteraction(interaction);
+    if (interaction.commandName === 'stop') {
+      await stopInteraction(interaction);
+    }
+  } catch (e) {
+    console.log(e);
   }
 });
 
@@ -198,52 +202,56 @@ var startListening = async () => {
     if (watches == null)
       return;
 
-    var leagueCache = {} as { [id: string] : FantasyCriticResponse; };
+    var leagueCache = {} as { [id: string]: FantasyCriticResponse; };
 
     for (const watch of watches.entries) {
       for (const league of watch.leagues) {
-        let response = leagueCache[league.leagueId] as FantasyCriticResponse | null;
-        
-        // get the response
-        if (response == null) {
-          response = await getLeague(league.leagueId);
-          // if we can't fetch, then stop
-          if (response == null)
-            continue;
+        try {
+          let response = leagueCache[league.leagueId] as FantasyCriticResponse | null;
 
-          leagueCache[league.leagueId] = response;          
-        }
+          // get the response
+          if (response == null) {
+            response = await getLeague(league.leagueId);
+            // if we can't fetch, then stop
+            if (response == null)
+              continue;
 
-        // are there no public bids?
-        if (response.publicBiddingGames == null) {
-          // Did we have public bids before? if so store the cache as empty
-          if (league.publicBiddingGamesMasterIds.length !== 0){
-            console.log("Day has come to an end, no public bids");
-            league.publicBiddingGamesMasterIds = [];
+            leagueCache[league.leagueId] = response;
+          }
+
+          // are there no public bids?
+          if (response.publicBiddingGames == null) {
+            // Did we have public bids before? if so store the cache as empty
+            if (league.publicBiddingGamesMasterIds.length !== 0) {
+              console.log("Day has come to an end, no public bids");
+              league.publicBiddingGamesMasterIds = [];
+            } else {
+              continue;
+            }
           } else {
-            continue;
-          }
-        } else {
-          // see if there are master bids
-          var masterIds = response.publicBiddingGames.map(x => x.masterGameID);
-          var combinedIds = union(masterIds, league.publicBiddingGamesMasterIds);
-  
-          if (league.publicBiddingGamesMasterIds.length == combinedIds.length){
-            // no noticable changes, do nothing
-            continue;
-          }
-  
-          if (masterIds.length !== 0) {
-            // there are new bids, post them in the chat
-            var channel = (await client.channels.fetch(watch.channelId!)) as TextChannel;
-            var message = createEmbedMessage(response);
-            await channel.send({ embeds: [message] });
-          }
-  
-          league.publicBiddingGamesMasterIds = masterIds;
-        }
+            // see if there are master bids
+            var masterIds = response.publicBiddingGames.map(x => x.masterGameID);
+            var combinedIds = union(masterIds, league.publicBiddingGamesMasterIds);
 
-        storage.set(STORAGE_WATCH_KEY, watches);
+            if (league.publicBiddingGamesMasterIds.length == combinedIds.length) {
+              // no noticable changes, do nothing
+              continue;
+            }
+
+            if (masterIds.length !== 0) {
+              // there are new bids, post them in the chat
+              var channel = (await client.channels.fetch(watch.channelId!)) as TextChannel;
+              var message = createEmbedMessage(response);
+              await channel.send({ embeds: [message] });
+            }
+
+            league.publicBiddingGamesMasterIds = masterIds;
+          }
+
+          storage.set(STORAGE_WATCH_KEY, watches);
+        } catch (e) {
+          console.log(e);
+        }
       }
     }
   }
@@ -251,28 +259,28 @@ var startListening = async () => {
   await tick();
 }
 
-const createEmbedMessage = (data : FantasyCriticResponse) => {
+const createEmbedMessage = (data: FantasyCriticResponse) => {
   let message = new MessageEmbed();
 
   let bids = data.publicBiddingGames;
-  bids.sort((x,y) => x.gameName.localeCompare(y.gameName))
+  bids.sort((x, y) => x.gameName.localeCompare(y.gameName))
 
-  let games = bids.map(x => x.gameName).reduce((x,y)=>`${x}\n${y}`)
-  let dates = bids.map(x => x.estimatedReleaseDate).reduce((x,y)=>`${x}\n${y}`)
+  let games = bids.map(x => x.gameName).reduce((x, y) => `${x}\n${y}`)
+  let dates = bids.map(x => x.estimatedReleaseDate).reduce((x, y) => `${x}\n${y}`)
 
   message
-      .setTitle(`Fantasy Critic Public Bids - ${data.players[0].user.leagueName}`)
-      .setColor("#d6993a")
-      .setURL(`https://www.fantasycritic.games/league/${data.leagueID}/${data.year}`)
-      .addFields(
-          { name: 'Games', value: games, inline: true },
-          { name: 'Dates', value: dates || "N/A", inline: true },
-      )
-      .setThumbnail("https://pbs.twimg.com/profile_images/1067596827279704064/rFjTL7o6_400x400.jpg")
-      .setTimestamp();
+    .setTitle(`Fantasy Critic Public Bids - ${data.players[0].user.leagueName}`)
+    .setColor("#d6993a")
+    .setURL(`https://www.fantasycritic.games/league/${data.leagueID}/${data.year}`)
+    .addFields(
+      { name: 'Games', value: games, inline: true },
+      { name: 'Dates', value: dates || "N/A", inline: true },
+    )
+    .setThumbnail("https://pbs.twimg.com/profile_images/1067596827279704064/rFjTL7o6_400x400.jpg")
+    .setTimestamp();
 
   return message;
-} 
+}
 
 //#endregion
 
