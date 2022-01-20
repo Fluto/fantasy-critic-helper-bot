@@ -78,43 +78,49 @@ const setupRest = async (guilds: string[]) => {
 //#region Response
 
 const listenInteraction = async (interaction: BaseCommandInteraction<CacheType>) => {
-  const league = interaction.options.get("league");
-  if (league == null || league.value == null) {
-    await interaction.reply('Need league ID');
-    return;
+  try {
+
+    const league = interaction.options.get("league");
+    if (league == null || league.value == null) {
+      await interaction.reply('Need league ID');
+      return;
+    }
+
+    let leagueId = league.value.toString();
+    if (leagueId.length != 36) {
+      await interaction.reply('League ID needs to be 32 Chars (GUID)');
+      return;
+    }
+
+    // test the league
+    let data = await getLeague(leagueId);
+    if (data == null) {
+      await interaction.reply('League ID is invalid');
+      return;
+    }
+
+    var watches = await storage.get(STORAGE_WATCH_KEY) as WatchEntries;
+    if (watches == null)
+      watches = new WatchEntries();
+
+    let watch = watches.entries.find(x => x.channelId == interaction.channelId && x.guildId == interaction.guildId);
+    if (watch == null) {
+      watch = new WatchEntry({ channelId: interaction.channelId, guildId: interaction.guildId! });
+      watches.entries.push(watch);
+    }
+
+    if (watch.leagues.findIndex(x => x.leagueId == leagueId) >= 0) {
+      await interaction.reply(`League \`${leagueId}\` is already being watched`);
+      return;
+    }
+
+    watch.leagues.push(new LeagueEntry(leagueId));
+    storage.set(STORAGE_WATCH_KEY, watches);
+    await interaction.reply(`Listening to league \`${leagueId}\``);
   }
-
-  let leagueId = league.value.toString();
-  if (leagueId.length != 36) {
-    await interaction.reply('League ID needs to be 32 Chars (GUID)');
-    return;
+  catch (e) {
+    console.log(e);
   }
-
-  // test the league
-  let data = await getLeague(leagueId);
-  if (data == null) {
-    await interaction.reply('League ID is invalid');
-    return;
-  }
-
-  var watches = await storage.get(STORAGE_WATCH_KEY) as WatchEntries;
-  if (watches == null)
-    watches = new WatchEntries();
-
-  let watch = watches.entries.find(x => x.channelId == interaction.channelId && x.guildId == interaction.guildId);
-  if (watch == null) {
-    watch = new WatchEntry({ channelId: interaction.channelId, guildId: interaction.guildId! });
-    watches.entries.push(watch);
-  }
-
-  if (watch.leagues.findIndex(x => x.leagueId == leagueId) >= 0) {
-    await interaction.reply(`League \`${leagueId}\` is already being watched`);
-    return;
-  }
-
-  watch.leagues.push(new LeagueEntry(leagueId));
-  storage.set(STORAGE_WATCH_KEY, watches);
-  await interaction.reply(`Listening to league \`${leagueId}\``);
 }
 
 
@@ -177,8 +183,7 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.commandName === 'listen')
       await listenInteraction(interaction);
-
-    if (interaction.commandName === 'stop') {
+    else if (interaction.commandName === 'stop') {
       await stopInteraction(interaction);
     }
   } catch (e) {
