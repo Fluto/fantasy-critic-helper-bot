@@ -275,7 +275,16 @@ const createEmbedMessage = (data: FantasyCriticResponse) => {
   let bids = data.publicBiddingGames;
   bids.sort((x, y) => x.gameName.localeCompare(y.gameName))
 
-  let games = bids.map(x => x.gameName).reduce((x, y) => `${x}\n${y}`)
+  let pickedGames = data.publishers.flatMap(x => x.games).map(x => x.masterGame.masterGameID);
+
+  let games = bids.map(x => {
+    let result = x.gameName;
+
+    if (pickedGames.indexOf(x.masterGameID) >= 0)
+      result += " (CP)"
+
+    return result;
+  }).reduce((x, y) => `${x}\n${y}`)
   let dates = bids.map(x => x.estimatedReleaseDate).reduce((x, y) => `${x}\n${y}`)
 
   message
