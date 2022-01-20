@@ -14,12 +14,16 @@ const POLL_TIME = 1000 * 60 * 30;// 30 minutes
 //#region Setup stoage
 
 const setupStorage = async () => {
-  await storage.init({
-    dir: 'storage',
-    stringify: JSON.stringify,
-    parse: JSON.parse,
-    encoding: 'utf8',
-  });
+  try {
+    await storage.init({
+      dir: 'storage',
+      stringify: JSON.stringify,
+      parse: JSON.parse,
+      encoding: 'utf8',
+    });
+  } catch (e) {
+    console.log(e);
+  }
 }
 
 //#endregion
@@ -285,8 +289,13 @@ const createEmbedMessage = (data: FantasyCriticResponse) => {
 //#endregion
 
 //#region Initialize
+console.log("Starting Storage");
 setupStorage().then(() => {
+  console.log("Started Storage");
+  console.log("Logging into Discord");
   client.login(token).then(() => {
+    console.log("Logged into Discord");
+    console.log("Start listening for updates");
     startListening();
   });
 });
