@@ -79,23 +79,23 @@ const setupRest = async (guilds: string[]) => {
 
 const listenInteraction = async (interaction: BaseCommandInteraction<CacheType>) => {
   try {
-
+    await interaction.deferReply();
     const league = interaction.options.get("league");
     if (league == null || league.value == null) {
-      await interaction.reply('Need league ID');
+      await interaction.editReply('Need league ID');
       return;
     }
 
     let leagueId = league.value.toString();
     if (leagueId.length != 36) {
-      await interaction.reply('League ID needs to be 32 Chars (GUID)');
+      await interaction.editReply('League ID needs to be 32 Chars (GUID)');
       return;
     }
 
     // test the league
     let data = await getLeague(leagueId);
     if (data == null) {
-      await interaction.reply('League ID is invalid');
+      await interaction.editReply('League ID is invalid');
       return;
     }
 
@@ -110,13 +110,13 @@ const listenInteraction = async (interaction: BaseCommandInteraction<CacheType>)
     }
 
     if (watch.leagues.findIndex(x => x.leagueId == leagueId) >= 0) {
-      await interaction.reply(`League \`${leagueId}\` is already being watched`);
+      await interaction.editReply(`League \`${leagueId}\` is already being watched`);
       return;
     }
 
     watch.leagues.push(new LeagueEntry(leagueId));
     storage.set(STORAGE_WATCH_KEY, watches);
-    await interaction.reply(`Listening to league \`${leagueId}\``);
+    await interaction.editReply(`Listening to league \`${leagueId}\``);
   }
   catch (e) {
     console.log(e);
@@ -131,12 +131,13 @@ const listenInteraction = async (interaction: BaseCommandInteraction<CacheType>)
 const stopInteraction = async (interaction: BaseCommandInteraction<CacheType>) => {
   const league = interaction.options.get("league");
   let leagueIdToRemove = null as string | null;
+  await interaction.deferReply();
 
   if (league != null && league.value != null) {
     leagueIdToRemove = league.value.toString();
 
     if (leagueIdToRemove.length != 36) {
-      await interaction.reply('League ID needs to be 32 Chars (GUID)');
+      await interaction.editReply('League ID needs to be 32 Chars (GUID)');
       return;
     }
   }
@@ -147,7 +148,7 @@ const stopInteraction = async (interaction: BaseCommandInteraction<CacheType>) =
 
   let watchIndex = watches.entries.findIndex(x => x.channelId == interaction.channelId && x.guildId == interaction.guildId);
   if (watchIndex < 0) {
-    await interaction.reply('This channel is already not listening to leagues');
+    await interaction.editReply('This channel is already not listening to leagues');
     return;
   }
 
@@ -156,17 +157,17 @@ const stopInteraction = async (interaction: BaseCommandInteraction<CacheType>) =
   if (leagueIdToRemove != null) {
     let leagueIndex = watch.leagues.findIndex(x => x.leagueId == leagueIdToRemove);
     if (leagueIndex < 0) {
-      await interaction.reply(`League \`${leagueIdToRemove}\` is already not being listened to`);
+      await interaction.editReply(`League \`${leagueIdToRemove}\` is already not being listened to`);
       return;
     }
 
     watch.leagues.splice(leagueIndex, 1);
-    await interaction.reply(`Stopped listening to League \`${leagueIdToRemove}\``);
+    await interaction.editReply(`Stopped listening to League \`${leagueIdToRemove}\``);
   }
   // remove all leagues, i.e. the entire entry
   else {
     watches.entries.splice(watchIndex, 1);
-    await interaction.reply(`Stopped listening to all leagues`);
+    await interaction.editReply(`Stopped listening to all leagues`);
   }
   storage.set(STORAGE_WATCH_KEY, watches);
 }
