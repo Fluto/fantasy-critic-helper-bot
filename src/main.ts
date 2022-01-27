@@ -10,7 +10,7 @@ import { union } from 'lodash';
 import { FantasyCriticResponse, getLeague } from './fantasyCritic';
 
 const STORAGE_WATCH_KEY = "watches";
-const POLL_TIME = 1000 * 60 * 30;// 30 minutes
+const POLL_TIME = 1000 * 60 * 10;// 30 minutes
 //#region Setup stoage
 
 const setupStorage = async () => {
@@ -115,7 +115,7 @@ const listenInteraction = async (interaction: BaseCommandInteraction<CacheType>)
     }
 
     watch.leagues.push(new LeagueEntry(leagueId));
-    storage.set(STORAGE_WATCH_KEY, watches);
+    await storage.set(STORAGE_WATCH_KEY, watches);
     await interaction.editReply(`Listening to league \`${leagueId}\``);
   }
   catch (e) {
@@ -169,7 +169,7 @@ const stopInteraction = async (interaction: BaseCommandInteraction<CacheType>) =
     watches.entries.splice(watchIndex, 1);
     await interaction.editReply(`Stopped listening to all leagues`);
   }
-  storage.set(STORAGE_WATCH_KEY, watches);
+  await storage.set(STORAGE_WATCH_KEY, watches);
 }
 
 client.on('ready', () => {
@@ -258,7 +258,7 @@ var startListening = async () => {
             league.publicBiddingGamesMasterIds = masterIds;
           }
 
-          storage.set(STORAGE_WATCH_KEY, watches);
+          await storage.set(STORAGE_WATCH_KEY, watches);
         } catch (e) {
           console.log(e);
         }
