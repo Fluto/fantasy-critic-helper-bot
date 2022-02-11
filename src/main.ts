@@ -240,7 +240,7 @@ var startListening = async () => {
             }
           } else {
             // see if there are master bids
-            var masterIds = response.publicBiddingGames.map(x => x.masterGameID);
+            var masterIds = response.publicBiddingGames.map(x => x.masterGame.masterGameID);
             var combinedIds = union(masterIds, league.publicBiddingGamesMasterIds);
 
             if (league.publicBiddingGamesMasterIds.length == combinedIds.length) {
@@ -273,19 +273,17 @@ const createEmbedMessage = (data: FantasyCriticResponse) => {
   let message = new MessageEmbed();
 
   let bids = data.publicBiddingGames;
-  bids.sort((x, y) => x.gameName.localeCompare(y.gameName))
-
-  let pickedGames = data.publishers.flatMap(x => x.games).map(x => x.masterGame.masterGameID);
+  bids.sort((x, y) => x.masterGame.gameName.localeCompare(y.masterGame.gameName))
 
   let games = bids.map(x => {
-    let result = x.gameName;
+    let result = x.masterGame.gameName;
 
-    if (pickedGames.indexOf(x.masterGameID) >= 0)
+    if (x.counterPick)
       result += " (CP)"
 
     return result;
   }).reduce((x, y) => `${x}\n${y}`)
-  let dates = bids.map(x => x.estimatedReleaseDate).reduce((x, y) => `${x}\n${y}`)
+  let dates = bids.map(x => x.masterGame.estimatedReleaseDate).reduce((x, y) => `${x}\n${y}`)
 
   message
     .setTitle(`Fantasy Critic Public Bids - ${data.players[0].user.leagueName}`)

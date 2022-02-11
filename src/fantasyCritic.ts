@@ -7,6 +7,7 @@ import fetch from 'cross-fetch';
 
 export const getLeague = async (leagueId: string) => {
     var year = getYear(Date.now());
+
     const URL = `https://www.fantasycritic.games/api/League/GetLeagueYear?leagueID=${leagueId}&year=${year}`
     var response = await fetch(URL);
     if (response.status != 200)
@@ -15,8 +16,6 @@ export const getLeague = async (leagueId: string) => {
     let data = (await response.json()) as FantasyCriticResponse;
     return data;
 }
-
-
 
 export interface SupportedYear {
     year: number;
@@ -41,26 +40,31 @@ export interface MasterGame {
     estimatedReleaseDate: string;
     minimumReleaseDate: string;
     maximumReleaseDate: string;
-    earlyAccessReleaseDate?: any;
-    internationalReleaseDate?: any;
+    earlyAccessReleaseDate: string;
+    internationalReleaseDate: string;
+    announcementDate?: any;
     releaseDate: string;
     isReleased: boolean;
     willRelease: boolean;
-    criticScore?: any;
+    delayContention: boolean;
+    criticScore?: number;
     averagedScore: boolean;
     openCriticID?: number;
+    ggToken: string;
     subGames: any[];
     tags: string[];
     readableTags: string[];
     boxartFileName: string;
+    ggCoverArtFileName: string;
     addedTimestamp: Date;
     percentStandardGame: number;
     percentCounterPick: number;
     eligiblePercentStandardGame: number;
     adjustedPercentCounterPick: number;
-    averageDraftPosition: number;
+    averageDraftPosition?: number;
     hypeFactor: number;
     dateAdjustedHypeFactor: number;
+    peakHypeFactor: number;
     projectedFantasyPoints: number;
     projectedOrRealFantasyPoints: number;
 }
@@ -72,16 +76,17 @@ export interface Game {
     counterPick: boolean;
     estimatedReleaseDate: string;
     releaseDate?: Date;
-    fantasyPoints?: any;
-    criticScore?: any;
+    fantasyPoints?: number;
+    criticScore?: number;
     masterGame: MasterGame;
-    overallDraftPosition: number;
+    overallDraftPosition?: number;
     slotNumber: number;
     linked: boolean;
     released: boolean;
     willRelease: boolean;
     manualCriticScore: boolean;
     manualWillNotRelease: boolean;
+    counterPicked: boolean;
     dropBlocked: boolean;
 }
 
@@ -97,26 +102,31 @@ export interface MasterGame2 {
     estimatedReleaseDate: string;
     minimumReleaseDate: string;
     maximumReleaseDate: string;
-    earlyAccessReleaseDate?: any;
-    internationalReleaseDate?: any;
+    earlyAccessReleaseDate: string;
+    internationalReleaseDate: string;
+    announcementDate?: any;
     releaseDate: string;
     isReleased: boolean;
     willRelease: boolean;
-    criticScore?: any;
+    delayContention: boolean;
+    criticScore?: number;
     averagedScore: boolean;
     openCriticID?: number;
+    ggToken: string;
     subGames: any[];
     tags: string[];
     readableTags: string[];
     boxartFileName: string;
+    ggCoverArtFileName: string;
     addedTimestamp: Date;
     percentStandardGame: number;
     percentCounterPick: number;
     eligiblePercentStandardGame: number;
     adjustedPercentCounterPick: number;
-    averageDraftPosition: number;
+    averageDraftPosition?: number;
     hypeFactor: number;
     dateAdjustedHypeFactor: number;
+    peakHypeFactor: number;
     projectedFantasyPoints: number;
     projectedOrRealFantasyPoints: number;
 }
@@ -128,16 +138,17 @@ export interface PublisherGame {
     counterPick: boolean;
     estimatedReleaseDate: string;
     releaseDate?: Date;
-    fantasyPoints?: any;
-    criticScore?: any;
+    fantasyPoints?: number;
+    criticScore?: number;
     masterGame: MasterGame2;
-    overallDraftPosition: number;
+    overallDraftPosition?: number;
     slotNumber: number;
     linked: boolean;
     released: boolean;
     willRelease: boolean;
     manualCriticScore: boolean;
     manualWillNotRelease: boolean;
+    counterPicked: boolean;
     dropBlocked: boolean;
 }
 
@@ -158,6 +169,7 @@ export interface Publisher {
     leagueID: string;
     userID: string;
     publisherName: string;
+    publisherIcon: string;
     leagueName: string;
     playerName: string;
     year: number;
@@ -165,7 +177,7 @@ export interface Publisher {
     autoDraft: boolean;
     games: Game[];
     gameSlots: GameSlot[];
-    averageCriticScore?: any;
+    averageCriticScore?: number;
     totalFantasyPoints: number;
     totalProjectedPoints: number;
     budget: number;
@@ -201,26 +213,31 @@ export interface MasterGame3 {
     estimatedReleaseDate: string;
     minimumReleaseDate: string;
     maximumReleaseDate: string;
-    earlyAccessReleaseDate?: any;
-    internationalReleaseDate?: any;
+    earlyAccessReleaseDate: string;
+    internationalReleaseDate: string;
+    announcementDate?: any;
     releaseDate: string;
     isReleased: boolean;
     willRelease: boolean;
-    criticScore?: any;
+    delayContention: boolean;
+    criticScore?: number;
     averagedScore: boolean;
     openCriticID?: number;
+    ggToken: string;
     subGames: any[];
     tags: string[];
     readableTags: string[];
     boxartFileName: string;
+    ggCoverArtFileName: string;
     addedTimestamp: Date;
     percentStandardGame: number;
     percentCounterPick: number;
     eligiblePercentStandardGame: number;
     adjustedPercentCounterPick: number;
-    averageDraftPosition: number;
+    averageDraftPosition?: number;
     hypeFactor: number;
     dateAdjustedHypeFactor: number;
+    peakHypeFactor: number;
     projectedFantasyPoints: number;
     projectedOrRealFantasyPoints: number;
 }
@@ -232,16 +249,17 @@ export interface Game2 {
     counterPick: boolean;
     estimatedReleaseDate: string;
     releaseDate?: Date;
-    fantasyPoints?: any;
-    criticScore?: any;
+    fantasyPoints?: number;
+    criticScore?: number;
     masterGame: MasterGame3;
-    overallDraftPosition: number;
+    overallDraftPosition?: number;
     slotNumber: number;
     linked: boolean;
     released: boolean;
     willRelease: boolean;
     manualCriticScore: boolean;
     manualWillNotRelease: boolean;
+    counterPicked: boolean;
     dropBlocked: boolean;
 }
 
@@ -257,26 +275,31 @@ export interface MasterGame4 {
     estimatedReleaseDate: string;
     minimumReleaseDate: string;
     maximumReleaseDate: string;
-    earlyAccessReleaseDate?: any;
-    internationalReleaseDate?: any;
+    earlyAccessReleaseDate: string;
+    internationalReleaseDate: string;
+    announcementDate?: any;
     releaseDate: string;
     isReleased: boolean;
     willRelease: boolean;
-    criticScore?: any;
+    delayContention: boolean;
+    criticScore?: number;
     averagedScore: boolean;
     openCriticID?: number;
+    ggToken: string;
     subGames: any[];
     tags: string[];
     readableTags: string[];
     boxartFileName: string;
+    ggCoverArtFileName: string;
     addedTimestamp: Date;
     percentStandardGame: number;
     percentCounterPick: number;
     eligiblePercentStandardGame: number;
     adjustedPercentCounterPick: number;
-    averageDraftPosition: number;
+    averageDraftPosition?: number;
     hypeFactor: number;
     dateAdjustedHypeFactor: number;
+    peakHypeFactor: number;
     projectedFantasyPoints: number;
     projectedOrRealFantasyPoints: number;
 }
@@ -288,16 +311,17 @@ export interface PublisherGame2 {
     counterPick: boolean;
     estimatedReleaseDate: string;
     releaseDate?: Date;
-    fantasyPoints?: any;
-    criticScore?: any;
+    fantasyPoints?: number;
+    criticScore?: number;
     masterGame: MasterGame4;
-    overallDraftPosition: number;
+    overallDraftPosition?: number;
     slotNumber: number;
     linked: boolean;
     released: boolean;
     willRelease: boolean;
     manualCriticScore: boolean;
     manualWillNotRelease: boolean;
+    counterPicked: boolean;
     dropBlocked: boolean;
 }
 
@@ -318,6 +342,7 @@ export interface Publisher2 {
     leagueID: string;
     userID: string;
     publisherName: string;
+    publisherIcon: string;
     leagueName: string;
     playerName: string;
     year: number;
@@ -325,7 +350,7 @@ export interface Publisher2 {
     autoDraft: boolean;
     games: Game2[];
     gameSlots: GameSlot2[];
-    averageCriticScore?: any;
+    averageCriticScore?: number;
     totalFantasyPoints: number;
     totalProjectedPoints: number;
     budget: number;
@@ -386,35 +411,46 @@ export interface PlayStatus {
     startDraftErrors: any[];
 }
 
-export interface PublicBiddingGame {
+export interface MasterGame5 {
     masterGameID: string;
     year: number;
     gameName: string;
     estimatedReleaseDate: string;
     minimumReleaseDate: string;
     maximumReleaseDate: string;
-    earlyAccessReleaseDate: string;
-    internationalReleaseDate?: any;
+    earlyAccessReleaseDate?: any;
+    internationalReleaseDate: string;
+    announcementDate: string;
     releaseDate: string;
     isReleased: boolean;
     willRelease: boolean;
+    delayContention: boolean;
     criticScore?: any;
     averagedScore: boolean;
     openCriticID?: number;
+    ggToken: string;
     subGames: any[];
     tags: string[];
     readableTags: string[];
     boxartFileName: string;
+    ggCoverArtFileName: string;
     addedTimestamp: Date;
     percentStandardGame: number;
     percentCounterPick: number;
     eligiblePercentStandardGame: number;
     adjustedPercentCounterPick?: number;
-    averageDraftPosition: number;
+    averageDraftPosition?: number;
     hypeFactor: number;
     dateAdjustedHypeFactor: number;
+    peakHypeFactor: number;
     projectedFantasyPoints: number;
     projectedOrRealFantasyPoints: number;
+}
+
+export interface PublicBiddingGame {
+    masterGame: MasterGame5;
+    counterPick: boolean;
+    eligibilityErrors: any[];
 }
 
 export interface FantasyCriticResponse {
@@ -440,5 +476,4 @@ export interface FantasyCriticResponse {
     managerMessages: any[];
     publicBiddingGames: PublicBiddingGame[];
 }
-
 
