@@ -240,7 +240,7 @@ var startListening = async () => {
             }
           } else {
             // see if there are master bids
-            var masterIds = response.publicBiddingGames.map(x => x.masterGame.masterGameID);
+            var masterIds = response.publicBiddingGames.masterGames.map(x => x.masterGame.masterGameID);
             var combinedIds = union(masterIds, league.publicBiddingGamesMasterIds);
 
             if (league.publicBiddingGamesMasterIds.length == combinedIds.length) {
@@ -272,7 +272,7 @@ var startListening = async () => {
 const createEmbedMessage = (data: FantasyCriticResponse) => {
   let message = new MessageEmbed();
 
-  let bids = data.publicBiddingGames;
+  let bids = data.publicBiddingGames.masterGames;
   bids.sort((x, y) => x.masterGame.gameName.localeCompare(y.masterGame.gameName))
 
   let games = bids.map(x => {
